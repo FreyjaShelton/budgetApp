@@ -27,8 +27,9 @@ npm run build    # static site in dist/ (open from any static host)
 | Loan calculator | Payoff time and interest saved from extra payments; prefill from a debt account. |
 | Category templates | Starter / Minimal / Family presets. |
 | Backup | JSON backup & restore, CSV export of transactions. |
+| Cross-device sync | Settings → Sync with Google Drive. Data is encrypted in the browser with a passphrase (PBKDF2 + AES-GCM) and stored in Drive's hidden app folder (`drive.appdata` scope only). Edits from different devices merge record by record. |
 
-Not built (yet): automatic bank sync, cross-device sync, sharing, receipt photos, scheduled/recurring transactions.
+Not built (yet): automatic bank sync, sharing, receipt photos, scheduled/recurring transactions.
 
 ## Code map
 
@@ -37,6 +38,7 @@ Not built (yet): automatic bank sync, cross-device sync, sharing, receipt photos
 - `src/lib/reports.ts`, `src/lib/loan.ts`: report and payoff math.
 - `src/actions.ts`: all writes to the database (keeps transfer pairs and card payment categories in sync).
 - `src/db.ts`: Dexie (IndexedDB) schema and the live data hook.
+- `src/sync/`: encryption (`crypto.ts`), three-way merge (`merge.ts`), Drive client (`drive.ts`), sync loop (`engine.ts`).
 - `src/pages/*`, `src/components/*`: React UI.
 
 Money is stored as integer cents everywhere.
@@ -49,3 +51,7 @@ Hosted on Cloudflare Workers (static assets, see `wrangler.jsonc`), which builds
 private repo on every push to `main`: build command `npm run build`, deploy command
 `npx wrangler deploy`, Node version from `.node-version`. Cloudflare Access restricts the
 site to the owner's email.
+
+Google Drive sync uses the OAuth client ID in `.env` (`VITE_GOOGLE_CLIENT_ID`), from Google Cloud
+project `budget-sync-512813`. Its authorized JavaScript origins are the workers.dev URL and
+`http://localhost:5173`; add any new domain there too.
