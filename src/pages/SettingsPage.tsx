@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { CATEGORY_TEMPLATES, applyTemplate, clearAll, exportAll, replaceAll } from '../actions';
 import { downloadFile } from '../components/common';
+import { StorageCard, SyncCard } from '../components/SyncCard';
 import { sampleData } from '../lib/sample';
 import { today } from '../lib/month';
 import type { BudgetData } from '../types';
@@ -55,6 +56,8 @@ export function SettingsPage({ data }: { data: BudgetData }) {
       </div>
       <div className="stack" style={{ maxWidth: 720 }}>
         {msg && <div className="banner warn">{msg}</div>}
+        <SyncCard />
+        <StorageCard />
         <div className="card stack">
           <h2>Backup & restore</h2>
           <p className="muted" style={{ margin: 0 }}>
@@ -101,7 +104,7 @@ export function SettingsPage({ data }: { data: BudgetData }) {
             <button
               className="btn"
               onClick={async () => {
-                if (confirm('Replace all data with the sample budget?')) {
+                if (confirm('Replace all data with the sample budget? If sync is on, this replaces it on your other devices too.')) {
                   await replaceAll(sampleData());
                   setMsg('Sample data loaded.');
                 }
@@ -112,7 +115,7 @@ export function SettingsPage({ data }: { data: BudgetData }) {
             <button
               className="btn danger"
               onClick={async () => {
-                if (confirm('Delete ALL accounts, categories, and transactions? Download a backup first if you might want them.')) {
+                if (confirm('Delete ALL accounts, categories, and transactions? If sync is on, this also deletes them on your other devices. Download a backup first if you might want them.')) {
                   await clearAll();
                   setMsg('All data deleted.');
                 }

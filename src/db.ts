@@ -8,6 +8,8 @@ class BudgetDB extends Dexie {
   categories!: Table<Category, string>;
   transactions!: Table<Transaction, string>;
   assignments!: Table<Assignment, string>;
+  /** Device-local settings (sync config, last synced snapshot). Never synced or exported. */
+  meta!: Table<{ key: string }, string>;
 
   constructor() {
     super('budget-app');
@@ -18,6 +20,7 @@ class BudgetDB extends Dexie {
       transactions: 'id, accountId, date, transferPairId, importId',
       assignments: 'id, month, categoryId',
     });
+    this.version(2).stores({ meta: 'key' });
   }
 }
 

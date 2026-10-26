@@ -248,3 +248,11 @@ table.register td input, table.register td select { width: 100%; padding: 4px 6p
 .chart-box { height: 340px; }
 .welcome { max-width: 720px; margin: 40px auto; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sync-chip {
+  display: block; width: calc(100% - 16px); margin: -6px 8px 10px; padding: 5px 10px; text-align: left;
+  border: 1px solid transparent; border-radius: 6px; background: transparent; cursor: pointer;
+  color: var(--sidebar-muted); font-size: 12px; text-decoration: none;
+}
+.sync-chip:hover { background: var(--sidebar-active); color: var(--sidebar-text); }
+.sync-chip.action { border-color: #ffd43b; color: #ffd43b; }
+.sync-chip.error { border-color: #ff9f6b; color: #ff9f6b; }

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { HashRouter, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { AddAccountModal } from './components/AddAccountModal';
 import { Money } from './components/common';
+import { PersistBanner } from './components/PersistBanner';
+import { SyncChip } from './components/SyncChip';
+import { syncEngine } from './sync/engine';
 import { useBudgetData } from './db';
 import { accountBalances } from './lib/budget';
 import { AccountPage } from './pages/AccountPage';
@@ -30,6 +33,16 @@ function Shell() {
     mainRef.current?.scrollTo(0, 0);
   }, [location.pathname]);
 
+  useEffect(() => {
+    syncEngine.init();
+    const onVisible = () => document.visibilityState === 'visible' && syncEngine.syncIfReady();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
+  useEffect(() => {
+    if (data) syncEngine.notifyLocalChange();
+  }, [data]);
+
   if (!data) return null;
   const isEmpty = data.accounts.length === 0 && data.groups.length === 0;
 
@@ -41,6 +54,7 @@ function Shell() {
         <button className="btn ghost menu-toggle" style={{ margin: '10px 12px 0' }} onClick={() => setMenuOpen(true)}>
           ☰ Menu
         </button>
+        <PersistBanner hasData={!isEmpty} />
         {isEmpty && location.pathname !== '/settings' ? (
           <Welcome />
         ) : (
@@ -72,6 +86,7 @@ function Sidebar({ data, open }: { data: BudgetData; open: boolean }) {
   return (
     <nav className={`sidebar${open ? ' open' : ''}`}>
       <div className="brand">◆ Budget</div>
+      <SyncChip />
       <NavLink to="/" end className="nav">
         ▦ Plan
       </NavLink>
