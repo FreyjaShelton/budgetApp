@@ -45,6 +45,7 @@ Money is stored as integer cents everywhere.
 
 ## Deployment
 
-Hosted on Cloudflare Pages, which builds from this (private) repo on every push to `main`
-(build command `npm run build`, output `dist`, Node version from `.node-version`).
-Cloudflare Access restricts the site to the owner's email.
+Hosted on Cloudflare Workers (static assets, see `wrangler.jsonc`), which builds from this
+private repo on every push to `main`: build command `npm run build`, deploy command
+`npx wrangler deploy`, Node version from `.node-version`. Cloudflare Access restricts the
+site to the owner's email.
