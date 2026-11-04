@@ -1,5 +1,5 @@
 import { RTA, type Account, type BudgetData, type Category, type Cents, type MonthKey, type Transaction } from '../types';
-import { addMonths, currentMonth, monthOf, monthRange } from './month';
+import { addMonths, currentMonth, formatDate, formatMonth, monthOf, monthRange } from './month';
 
 /**
  * The budget engine. Pure functions over BudgetData, following YNAB's rules:
@@ -279,7 +279,7 @@ export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey):
       return {
         needed: Math.max(0, perMonth - cm.assigned),
         progress: ratio(cm.available, t.amount),
-        label: `Have ${fmtShort(t.amount)} by ${t.month}`,
+        label: `Have ${fmtShort(t.amount)} by ${t.date ? formatDate(t.date) : formatMonth(t.month)}`,
       };
     }
     case 'balance':

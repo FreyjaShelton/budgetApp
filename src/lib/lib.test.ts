@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { applyCsvMapping, findDuplicates, guessMapping, parseCsvRows, parseOfx } from './importers';
 import { amortizedPayment, payoff } from './loan';
 import { parseMoney } from './money';
-import { addMonths, monthDiff } from './month';
+import { addMonths, endOfMonth, monthDiff } from './month';
 
 describe('parseMoney', () => {
   it.each([
@@ -24,6 +24,9 @@ describe('months', () => {
     expect(addMonths('2026-11', 3)).toBe('2027-02');
     expect(addMonths('2026-01', -1)).toBe('2025-12');
     expect(monthDiff('2025-12', '2026-03')).toBe(3);
+    expect(endOfMonth('2026-02')).toBe('2026-02-28');
+    expect(endOfMonth('2028-02')).toBe('2028-02-29');
+    expect(endOfMonth('2026-12')).toBe('2026-12-31');
   });
 });
 

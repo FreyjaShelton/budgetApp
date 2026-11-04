@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { deleteCategory, moveCategory, moveMoney, setAssigned, setTarget, updateCategory } from '../actions';
 import { targetStatus, type CategoryMonth, type MonthSummary } from '../lib/budget';
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
-import { addMonths, currentMonth } from '../lib/month';
+import { addMonths, currentMonth, endOfMonth, monthOf, today } from '../lib/month';
 import type { BudgetData, Category, Cents, MonthKey, Target } from '../types';
 import { CategorySelect, Money } from './common';
 
@@ -197,14 +197,15 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
   const [type, setType] = useState<Target['type']>(t?.type ?? 'monthly');
   const [amount, setAmount] = useState(t ? centsToInput(t.amount) : '');
   const [mode, setMode] = useState<'setAside' | 'refill'>(t?.type === 'monthly' ? t.mode : 'setAside');
-  const [byMonth, setByMonth] = useState(t?.type === 'byDate' ? t.month : addMonths(currentMonth(), 6));
+  const [byDate, setByDate] = useState(t?.type === 'byDate' ? (t.date ?? endOfMonth(t.month)) : endOfMonth(addMonths(currentMonth(), 6)));
   const [error, setError] = useState('');
 
   const save = () => {
     const amt = parseMoney(amount);
     if (!amt || amt <= 0) return setError('Enter a target amount.');
+    if (type === 'byDate' && !/^\d{4}-\d{2}-\d{2}$/.test(byDate)) return setError('Pick the date you need the money by.');
     const target: Target =
-      type === 'monthly' ? { type, amount: amt, mode } : type === 'byDate' ? { type, amount: amt, month: byMonth } : { type, amount: amt };
+      type === 'monthly' ? { type, amount: amt, mode } : type === 'byDate' ? { type, amount: amt, month: monthOf(byDate), date: byDate } : { type, amount: amt };
     setTarget(cat.id, target);
     setEditing(false);
     setError('');
@@ -256,7 +257,7 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
       {type === 'byDate' && (
         <label>
           By
-          <input type="month" value={byMonth} onChange={(e) => setByMonth(e.target.value)} />
+          <input type="date" value={byDate} min={today()} onChange={(e) => setByDate(e.target.value)} />
         </label>
       )}
       {error && <div className="error">{error}</div>}

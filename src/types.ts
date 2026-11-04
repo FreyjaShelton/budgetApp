@@ -47,7 +47,7 @@ export type Target =
   /** Need `amount` each month. 'setAside' = assign amount every month; 'refill' = top up to amount. */
   | { type: 'monthly'; amount: Cents; mode: 'setAside' | 'refill' }
   /** Have a balance of `amount` by `month`. */
-  | { type: 'byDate'; amount: Cents; month: MonthKey }
+  | { type: 'byDate'; amount: Cents; month: MonthKey; /** Exact due date. Older targets only have `month`. */ date?: DateKey }
   /** Build and keep a balance of `amount`, with no deadline. */
   | { type: 'balance'; amount: Cents };
 

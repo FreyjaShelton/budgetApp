@@ -186,4 +186,14 @@ describe('targetStatus', () => {
     const s = targetStatus({ ...cat, target: { type: 'byDate', amount: 120000, month: '2026-12' } }, { ...base, carryIn: 0 }, '2026-01');
     expect(s!.needed).toBe(10000);
   });
+
+  it('by-date uses the exact date in its label and the month for the math', () => {
+    const withDate = targetStatus({ ...cat, target: { type: 'byDate', amount: 120000, month: '2026-12', date: '2026-12-15' } }, base, '2026-01');
+    expect(withDate!.needed).toBe(10000);
+    expect(withDate!.label).toMatch(/Dec 15, 2026/);
+    // Targets saved before exact dates existed still work.
+    const legacy = targetStatus({ ...cat, target: { type: 'byDate', amount: 120000, month: '2026-12' } }, base, '2026-01');
+    expect(legacy!.needed).toBe(10000);
+    expect(legacy!.label).toMatch(/December 2026/);
+  });
 });

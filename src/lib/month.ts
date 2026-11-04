@@ -25,6 +25,12 @@ export function monthDiff(a: MonthKey, b: MonthKey): number {
   return (by - ay) * 12 + (bm - am);
 }
 
+/** Last day of the month, e.g. '2026-02' -> '2026-02-28'. */
+export function endOfMonth(month: MonthKey): DateKey {
+  const [y, m] = month.split('-').map(Number);
+  return `${month}-${String(new Date(y, m, 0).getDate()).padStart(2, '0')}`;
+}
+
 export function monthRange(from: MonthKey, to: MonthKey): MonthKey[] {
   const out: MonthKey[] = [];
   for (let m = from; m <= to; m = addMonths(m, 1)) out.push(m);
