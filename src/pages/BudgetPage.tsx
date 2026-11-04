@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { addCategory, addGroup, assignMany, deleteGroup, moveGroup, renameGroup, setAssigned } from '../actions';
 import { CategoryInspector } from '../components/CategoryInspector';
 import { Money, MoneyInput } from '../components/common';
+import { categoryBar, type SegmentKind } from '../lib/bars';
 import { computeBudget, emptyCategoryMonth, targetStatus, uncategorized, type CategoryMonth, type MonthSummary } from '../lib/budget';
 import { formatMoney } from '../lib/money';
 import { addMonths, currentMonth, formatMonth } from '../lib/month';
@@ -272,6 +273,28 @@ const PILL_TITLES: Record<string, string> = {
   under: 'Underfunded: target needs more this month',
 };
 
+const SEGMENT_LABELS: Record<SegmentKind, string> = {
+  spent: 'spent',
+  available: 'available',
+  needed: 'still needed for target',
+  overCash: 'overspent',
+  overCredit: 'overspent on credit',
+};
+
+/** Striped = spent, solid = still available, pale = still needed for the target. */
+function CategoryBar({ cm, needed }: { cm: CategoryMonth; needed: number }) {
+  const segments = categoryBar(cm, needed);
+  if (!segments.length) return null;
+  const label = segments.map((s) => `${formatMoney(s.amount)} ${SEGMENT_LABELS[s.kind]}`).join(' · ');
+  return (
+    <div className="cat-bar" title={label} role="img" aria-label={label}>
+      {segments.map((s) => (
+        <div key={s.kind} className={`seg ${s.kind}`} style={{ flexGrow: s.fraction }} />
+      ))}
+    </div>
+  );
+}
+
 function CategoryRow({
   cat,
   cm,
@@ -298,14 +321,8 @@ function CategoryRow({
             {cat.name}
             {cat.hidden && <span className="muted"> (hidden)</span>}
           </span>
-          {ts && (
-            <>
-              <div className={`progress${ts.needed > 0 ? ' under' : ''}`}>
-                <div style={{ width: `${Math.round(ts.progress * 100)}%` }} />
-              </div>
-              {ts.needed > 0 && <span className="muted" style={{ fontSize: 12 }}>{formatMoney(ts.needed)} more needed this month</span>}
-            </>
-          )}
+          <CategoryBar cm={cm} needed={ts?.needed ?? 0} />
+          {ts && ts.needed > 0 && <span className="muted" style={{ fontSize: 12 }}>{formatMoney(ts.needed)} more needed this month</span>}
         </div>
       </td>
       <td className="num assigned" onClick={(e) => e.stopPropagation()}>
@@ -367,7 +384,7 @@ function MonthOverview({ summary }: { summary: MonthSummary }) {
         </div>
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        Click a category to see details, set a target, or move money. Type math like <code>200+45</code> into Assigned.
+        Click a category to see details, set a target, or move money. Type math like <code>200+45</code> into Assigned. Bars: striped = spent, solid = still available, pale yellow = still needed for the target.
       </p>
     </div>
   );

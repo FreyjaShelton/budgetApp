@@ -190,10 +190,17 @@ table.grid tr.selected td { background: var(--accent-soft) !important; }
 table.grid td.assigned input { width: 110px; text-align: right; padding: 3px 6px; border-color: transparent; background: transparent; }
 table.grid tr.cat:hover td.assigned input, table.grid td.assigned input:focus { border-color: var(--border); background: var(--surface); }
 .cat-name { display: flex; flex-direction: column; gap: 3px; }
-.progress { height: 4px; border-radius: 2px; background: var(--zero-soft); overflow: hidden; width: 100%; max-width: 260px; }
-.progress > div { height: 100%; background: var(--pos); }
-/* Underfunded: striped, so it reads differently from a full bar without relying on hue. */
-.progress.under > div { background: repeating-linear-gradient(135deg, var(--warn) 0 4px, transparent 4px 6px); }
+.cat-bar { display: flex; gap: 2px; height: 6px; width: 100%; max-width: 260px; }
+.cat-bar .seg { min-width: 3px; height: 100%; }
+.cat-bar .seg:first-child { border-radius: 3px 0 0 3px; }
+.cat-bar .seg:last-child { border-radius: 0 3px 3px 0; }
+.cat-bar .seg:only-child { border-radius: 3px; }
+/* Spent: diagonal stripes of the "good" color, so it reads as used-up money rather than a problem. */
+.cat-bar .seg.spent { background: repeating-linear-gradient(135deg, var(--pos) 0 2px, var(--pos-soft) 2px 5px); }
+.cat-bar .seg.available { background: var(--pos); }
+.cat-bar .seg.needed { background: var(--warn-pill); box-shadow: inset 0 0 0 1px var(--warn); }
+.cat-bar .seg.overCash { background: repeating-linear-gradient(135deg, var(--neg-solid) 0 2px, var(--neg-soft) 2px 5px); }
+.cat-bar .seg.overCredit { background: repeating-linear-gradient(135deg, var(--warn) 0 2px, var(--warn-pill) 2px 5px); }
 
 .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-weight: 600; min-width: 80px; text-align: right; }
 .pill.positive { background: var(--pos-soft); color: var(--pos-ink); }
