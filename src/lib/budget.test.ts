@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RTA, type Account, type BudgetData, type Transaction } from '../types';
-import { computeBudget, targetStatus, uncategorized } from './budget';
+import { computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
 
 const checking: Account = { id: 'chk', name: 'Checking', type: 'checking', onBudget: true, closed: false, sortOrder: 0 };
 const card: Account = { id: 'cc', name: 'Visa', type: 'creditCard', onBudget: true, closed: false, sortOrder: 1 };
@@ -185,6 +185,35 @@ describe('targetStatus', () => {
   it('by-date spreads the remainder over the months left', () => {
     const s = targetStatus({ ...cat, target: { type: 'byDate', amount: 120000, month: '2026-12' } }, { ...base, carryIn: 0 }, '2026-01');
     expect(s!.needed).toBe(10000);
+  });
+
+  it('repeating by-date: car insurance of $600 every 6 months', () => {
+    const insurance = { type: 'byDate' as const, amount: 60000, month: '2026-12', date: '2026-12-15', repeat: { every: 6, unit: 'month' as const } };
+    const c = { ...cat, target: insurance };
+    // Starting in Nov: two months (Nov, Dec) to save the first $600.
+    expect(targetStatus(c, base, '2026-11')!.needed).toBe(30000);
+    // After paying in Dec, January starts the next cycle: due Jun 15, spread over Jan..Jun.
+    expect(nextDueDate(insurance, '2027-01')).toBe('2027-06-15');
+    const jan = targetStatus(c, base, '2027-01')!;
+    expect(jan.needed).toBe(10000);
+    expect(jan.label).toBe('Have $600 by Jun 15, 2027, every 6 months');
+    // Halfway through a cycle with $300 saved: $100/month still.
+    expect(targetStatus(c, { ...base, carryIn: 30000, available: 30000 }, '2027-04')!.needed).toBe(10000);
+    // Due month itself still points at that month's date; the next cycle is Dec again.
+    expect(nextDueDate(insurance, '2027-06')).toBe('2027-06-15');
+    expect(nextDueDate(insurance, '2027-07')).toBe('2027-12-15');
+  });
+
+  it('repeating by-date handles years and short months', () => {
+    const yearly = { type: 'byDate' as const, amount: 12000, month: '2026-03', date: '2026-03-01', repeat: { every: 1, unit: 'year' as const } };
+    expect(nextDueDate(yearly, '2026-04')).toBe('2027-03-01');
+    expect(targetStatus({ ...cat, target: yearly }, base, '2026-04')!.label).toMatch(/every year$/);
+    const endOfMonth = { type: 'byDate' as const, amount: 100, month: '2026-08', date: '2026-08-31', repeat: { every: 6, unit: 'month' as const } };
+    expect(nextDueDate(endOfMonth, '2026-09')).toBe('2027-02-28');
+    // A non-repeating target past its date stays put (asks for the rest now).
+    const once = { type: 'byDate' as const, amount: 5000, month: '2026-01', date: '2026-01-10' };
+    expect(nextDueDate(once, '2026-05')).toBe('2026-01-10');
+    expect(targetStatus({ ...cat, target: once }, base, '2026-05')!.needed).toBe(5000);
   });
 
   it('by-date uses the exact date in its label and the month for the math', () => {

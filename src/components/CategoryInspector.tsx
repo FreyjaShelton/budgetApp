@@ -197,6 +197,9 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
   const [type, setType] = useState<Target['type']>(t?.type ?? 'monthly');
   const [amount, setAmount] = useState(t ? centsToInput(t.amount) : '');
   const [mode, setMode] = useState<'setAside' | 'refill'>(t?.type === 'monthly' ? t.mode : 'setAside');
+  const [repeats, setRepeats] = useState(t?.type === 'byDate' && !!t.repeat);
+  const [every, setEvery] = useState(String(t?.type === 'byDate' && t.repeat ? t.repeat.every : 6));
+  const [unit, setUnit] = useState<'month' | 'year'>(t?.type === 'byDate' && t.repeat ? t.repeat.unit : 'month');
   const [byDate, setByDate] = useState(t?.type === 'byDate' ? (t.date ?? endOfMonth(t.month)) : endOfMonth(addMonths(currentMonth(), 6)));
   const [error, setError] = useState('');
 
@@ -204,8 +207,12 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
     const amt = parseMoney(amount);
     if (!amt || amt <= 0) return setError('Enter a target amount.');
     if (type === 'byDate' && !/^\d{4}-\d{2}-\d{2}$/.test(byDate)) return setError('Pick the date you need the money by.');
+    const everyN = Number(every);
+    if (type === 'byDate' && repeats && !(Number.isInteger(everyN) && everyN >= 1 && everyN <= 120))
+      return setError('Repeat every must be a whole number from 1 to 120.');
     const target: Target =
-      type === 'monthly' ? { type, amount: amt, mode } : type === 'byDate' ? { type, amount: amt, month: monthOf(byDate), date: byDate } : { type, amount: amt };
+      type === 'monthly' ? { type, amount: amt, mode } : type === 'byDate'
+          ? { type, amount: amt, month: monthOf(byDate), date: byDate, repeat: repeats ? { every: everyN, unit } : undefined } : { type, amount: amt };
     setTarget(cat.id, target);
     setEditing(false);
     setError('');
@@ -259,6 +266,29 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
           By
           <input type="date" value={byDate} min={today()} onChange={(e) => setByDate(e.target.value)} />
         </label>
+      )}
+      {type === 'byDate' && (
+        <>
+          <label className="row" style={{ display: 'flex' }}>
+            <input type="checkbox" checked={repeats} onChange={(e) => setRepeats(e.target.checked)} />
+            Repeat (for bills like insurance or renewals)
+          </label>
+          {repeats && (
+            <div className="repeat-row">
+              <span className="muted">Every</span>
+              <input type="number" min={1} max={120} step={1} inputMode="numeric" value={every} onChange={(e) => setEvery(e.target.value)} aria-label="Repeat every" />
+              <select value={unit} onChange={(e) => setUnit(e.target.value as 'month' | 'year')} aria-label="Repeat unit">
+                <option value="month">{every === '1' ? 'month' : 'months'}</option>
+                <option value="year">{every === '1' ? 'year' : 'years'}</option>
+              </select>
+            </div>
+          )}
+          {repeats && (
+            <div className="muted" style={{ fontSize: 13 }}>
+              After each due date, the target moves to the next one and asks you to set the money aside again.
+            </div>
+          )}
+        </>
       )}
       {error && <div className="error">{error}</div>}
       <div className="row">

@@ -25,6 +25,13 @@ export function monthDiff(a: MonthKey, b: MonthKey): number {
   return (by - ay) * 12 + (bm - am);
 }
 
+/** Add months to a date, keeping the day but clamping to the month's end (Aug 31 + 6 -> Feb 28). */
+export function addMonthsToDate(date: DateKey, n: number): DateKey {
+  const month = addMonths(monthOf(date), n);
+  const lastDay = Number(endOfMonth(month).slice(8));
+  return `${month}-${String(Math.min(Number(date.slice(8, 10)), lastDay)).padStart(2, '0')}`;
+}
+
 /** Last day of the month, e.g. '2026-02' -> '2026-02-28'. */
 export function endOfMonth(month: MonthKey): DateKey {
   const [y, m] = month.split('-').map(Number);

@@ -328,3 +328,4 @@ tr.txn:hover .row-actions .icon-btn.edit, .row-actions .icon-btn.edit:focus-visi
   .modal footer { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); background: var(--surface); }
 }
 table.register .cat-field .btn { padding: 3px 6px; font-size: 11px; }
+.repeat-row { display: grid; grid-template-columns: auto 72px 1fr; gap: 8px; align-items: center; }

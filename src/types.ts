@@ -47,9 +47,22 @@ export type Target =
   /** Need `amount` each month. 'setAside' = assign amount every month; 'refill' = top up to amount. */
   | { type: 'monthly'; amount: Cents; mode: 'setAside' | 'refill' }
   /** Have a balance of `amount` by `month`. */
-  | { type: 'byDate'; amount: Cents; month: MonthKey; /** Exact due date. Older targets only have `month`. */ date?: DateKey }
+  | {
+      type: 'byDate';
+      amount: Cents;
+      month: MonthKey;
+      /** Exact (first) due date. Older targets only have `month`. */
+      date?: DateKey;
+      /** Repeats: after each due date, the next one is this far after it. */
+      repeat?: TargetRepeat;
+    }
   /** Build and keep a balance of `amount`, with no deadline. */
   | { type: 'balance'; amount: Cents };
+
+export interface TargetRepeat {
+  every: number;
+  unit: 'month' | 'year';
+}
 
 export interface Category {
   id: string;

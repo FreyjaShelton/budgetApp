@@ -1,5 +1,5 @@
-import { RTA, type Account, type BudgetData, type Category, type Cents, type MonthKey, type Transaction } from '../types';
-import { addMonths, currentMonth, formatDate, formatMonth, monthOf, monthRange } from './month';
+import { RTA, type Account, type BudgetData, type Category, type Cents, type DateKey, type MonthKey, type Target, type TargetRepeat, type Transaction } from '../types';
+import { addMonths, addMonthsToDate, currentMonth, endOfMonth, formatDate, formatMonth, monthDiff, monthOf, monthRange } from './month';
 
 /**
  * The budget engine. Pure functions over BudgetData, following YNAB's rules:
@@ -273,13 +273,15 @@ export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey):
       };
     }
     case 'byDate': {
-      const monthsLeft = Math.max(1, monthsBetweenInclusive(month, t.month));
+      const due = nextDueDate(t, month);
+      const monthsLeft = Math.max(1, monthsBetweenInclusive(month, monthOf(due)));
       const remaining = Math.max(0, t.amount - cm.carryIn);
       const perMonth = Math.ceil(remaining / monthsLeft);
+      const by = t.date || t.repeat ? formatDate(due) : formatMonth(t.month);
       return {
         needed: Math.max(0, perMonth - cm.assigned),
         progress: ratio(cm.available, t.amount),
-        label: `Have ${fmtShort(t.amount)} by ${t.date ? formatDate(t.date) : formatMonth(t.month)}`,
+        label: `Have ${fmtShort(t.amount)} by ${by}${t.repeat ? `, ${repeatLabel(t.repeat)}` : ''}`,
       };
     }
     case 'balance':
@@ -289,6 +291,28 @@ export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey):
         label: `Save ${fmtShort(t.amount)}`,
       };
   }
+}
+
+/**
+ * The due date that applies to `month`: the target's date, or for a repeating target the first
+ * occurrence (date, date + interval, ...) that falls in or after `month`.
+ */
+export function nextDueDate(t: Extract<Target, { type: 'byDate' }>, month: MonthKey): DateKey {
+  const first = t.date ?? endOfMonth(t.month);
+  if (!t.repeat) return first;
+  const step = repeatMonths(t.repeat);
+  const behind = monthDiff(monthOf(first), month);
+  const k = behind > 0 ? Math.ceil(behind / step) : 0;
+  return addMonthsToDate(first, k * step);
+}
+
+export function repeatMonths(r: TargetRepeat): number {
+  return Math.max(1, Math.round(r.every)) * (r.unit === 'year' ? 12 : 1);
+}
+
+export function repeatLabel(r: TargetRepeat): string {
+  if (r.every === 1) return r.unit === 'year' ? 'every year' : 'every month';
+  return `every ${r.every} ${r.unit}s`;
 }
 
 function monthsBetweenInclusive(from: MonthKey, to: MonthKey): number {
