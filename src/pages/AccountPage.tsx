@@ -1,13 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { categorizeTransactions, deleteAccount, deleteTransactions, reconcileAccount, setCleared, updateAccount } from '../actions';
-import { CategorySelect, Modal, Money, categoryName } from '../components/common';
+import { CategorySelect, Modal, Money, categoryName, useMediaQuery } from '../components/common';
 import { ImportModal } from '../components/ImportModal';
-import { TransactionEditor } from '../components/TransactionEditor';
+import { TransactionFormModal, TransactionRowEditor } from '../components/TransactionEditor';
 import { accountBalances, parts, uncategorized } from '../lib/budget';
 import { formatMoney, parseMoney } from '../lib/money';
 import { formatDate } from '../lib/month';
 import { ACCOUNT_TYPE_LABELS, type Account, type BudgetData, type ClearedState, type Transaction } from '../types';
+
+const REGISTER_CARDS_QUERY = '(max-width: 1279px)';
 
 const NEXT_CLEARED: Record<ClearedState, ClearedState> = { uncleared: 'cleared', cleared: 'uncleared', reconciled: 'reconciled' };
 
@@ -22,6 +24,8 @@ export function AccountPage({ data }: { data: BudgetData }) {
   const [importing, setImporting] = useState(false);
   const [reconciling, setReconciling] = useState(false);
   const [settings, setSettings] = useState(false);
+  // The table needs ~1280px of window to be readable; below that (tablets, narrow windows), use the card list.
+  const isMobile = useMediaQuery(REGISTER_CARDS_QUERY);
 
   const balances = useMemo(() => accountBalances(data.accounts, data.transactions), [data]);
   const bal = account
@@ -72,7 +76,8 @@ export function AccountPage({ data }: { data: BudgetData }) {
     setSelected(s);
   };
   const showAccount = !account;
-  const cols = showAccount ? 9 : 8;
+  const cols = showAccount ? 10 : 9;
+  const editingTxn = editing && editing !== 'new' ? data.transactions.find((t) => t.id === editing) : undefined;
 
   return (
     <div className="page">
@@ -104,7 +109,7 @@ export function AccountPage({ data }: { data: BudgetData }) {
         </div>
       </div>
 
-      <div className="row" style={{ marginBottom: 12 }}>
+      <div className="row register-toolbar">
         <button className="btn primary" onClick={() => setEditing('new')} disabled={data.accounts.length === 0}>
           + Add transaction
         </button>
@@ -121,22 +126,58 @@ export function AccountPage({ data }: { data: BudgetData }) {
             </button>
           </>
         )}
-        <span className="spacer" />
+        <span className="spacer hide-mobile" />
         <select value={filter} onChange={(e) => setParams(e.target.value === 'all' ? {} : { filter: e.target.value })} aria-label="Filter">
           <option value="all">All transactions</option>
           <option value="uncategorized">Needs category</option>
           <option value="uncleared">Uncleared</option>
         </select>
-        <input placeholder="Search payee, memo, category…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ width: 240 }} />
+        <input className="register-search" type="search" placeholder="Search payee, memo, category…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
 
-      {selected.size > 0 && <BulkBar data={data} ids={[...selected]} onDone={() => setSelected(new Set())} />}
+      {!isMobile && selected.size > 0 && <BulkBar data={data} ids={[...selected]} onDone={() => setSelected(new Set())} />}
 
-      <div style={{ overflowX: 'auto' }}>
+      {isMobile ? (
+        <>
+          <MobileTxnList
+            list={rows.list}
+            data={data}
+            accountsById={accountsById}
+            showAccount={showAccount}
+            running={rows.running}
+            uncatIds={uncatIds}
+            onEdit={setEditing}
+            emptyText={`No transactions${filter !== 'all' || search ? ' match' : ' yet'}.`}
+          />
+          {editing && (
+            <TransactionFormModal
+              key={editing}
+              data={data}
+              txn={editingTxn}
+              accountId={account?.id}
+              showAccount={showAccount}
+              onDone={() => setEditing(null)}
+            />
+          )}
+        </>
+      ) : (
         <table className="grid register">
+          {/* Narrow columns are fixed; the text columns (account, payee, category, memo) share the rest. */}
+          <colgroup>
+            <col style={{ width: 34 }} />
+            <col style={{ width: 38 }} />
+            <col style={{ width: 132 }} />
+            {showAccount && <col />}
+            <col />
+            <col />
+            <col />
+            <col style={{ width: 104 }} />
+            <col style={{ width: 116 }} />
+            <col style={{ width: 60 }} />
+          </colgroup>
           <thead>
             <tr>
-              <th style={{ width: 28 }}>
+              <th>
                 <input
                   type="checkbox"
                   aria-label="Select all"
@@ -144,27 +185,26 @@ export function AccountPage({ data }: { data: BudgetData }) {
                   onChange={(e) => setSelected(e.target.checked ? new Set(rows.list.map((t) => t.id)) : new Set())}
                 />
               </th>
-              <th style={{ width: 34 }} title="Cleared">
+              <th title="Cleared">
                 C
               </th>
-              <th style={{ width: 130 }}>Date</th>
+              <th>Date</th>
               {showAccount && <th>Account</th>}
               <th>Payee</th>
               <th>Category</th>
               <th>Memo</th>
-              <th className="num" style={{ width: 110 }}>
-                Outflow
-              </th>
-              <th className="num" style={{ width: 130 }}>
-                {account ? 'Inflow / Balance' : 'Inflow'}
+              <th className="num">Outflow</th>
+              <th className="num">{account ? 'Inflow / Balance' : 'Inflow'}</th>
+              <th>
+                <span className="sr-only">Actions</span>
               </th>
             </tr>
           </thead>
           <tbody>
-            {editing === 'new' && <TransactionEditor data={data} accountId={account?.id} showAccount={showAccount} onDone={() => setEditing(null)} />}
+            {editing === 'new' && <TransactionRowEditor data={data} accountId={account?.id} showAccount={showAccount} onDone={() => setEditing(null)} />}
             {rows.list.map((t) =>
               editing === t.id ? (
-                <TransactionEditor key={t.id} data={data} txn={t} showAccount={showAccount} onDone={() => setEditing(null)} />
+                <TransactionRowEditor key={t.id} data={data} txn={t} showAccount={showAccount} onDone={() => setEditing(null)} />
               ) : (
                 <TxnRow
                   key={t.id}
@@ -189,7 +229,7 @@ export function AccountPage({ data }: { data: BudgetData }) {
             )}
           </tbody>
         </table>
-      </div>
+      )}
 
       {importing && account && <ImportModal data={data} account={account} onClose={() => setImporting(false)} />}
       {reconciling && account && <ReconcileModal account={account} cleared={bal.cleared} onClose={() => setReconciling(false)} />}
@@ -240,7 +280,9 @@ function TxnRow({
       </td>
       <td onClick={onEdit}>{formatDate(t.date)}</td>
       {showAccount && <td onClick={onEdit}>{accountsById.get(t.accountId)?.name}</td>}
-      <td onClick={onEdit}>{t.payee}</td>
+      <td onClick={onEdit} title={t.payee}>
+        {t.payee}
+      </td>
       <td onClick={onEdit}>
         {needsCategory ? <span className="uncat">Needs category</span> : cat}
         {t.splits?.length ? (
@@ -249,7 +291,7 @@ function TxnRow({
           </div>
         ) : null}
       </td>
-      <td onClick={onEdit} className="muted">
+      <td onClick={onEdit} className="muted" title={t.memo}>
         {t.memo}
       </td>
       <td className="num" onClick={onEdit}>
@@ -263,8 +305,88 @@ function TxnRow({
           </div>
         )}
       </td>
+      <td className="row-actions">
+        <button className="icon-btn edit" onClick={onEdit} title="Edit" aria-label={`Edit ${t.payee}`}>
+          ✎
+        </button>
+      </td>
     </tr>
   );
+}
+
+/** Phone layout: transactions as compact cards grouped under date headings. */
+function MobileTxnList({
+  list,
+  data,
+  accountsById,
+  showAccount,
+  running,
+  uncatIds,
+  onEdit,
+  emptyText,
+}: {
+  list: Transaction[];
+  data: BudgetData;
+  accountsById: Map<string, Account>;
+  showAccount: boolean;
+  running: Map<string, number>;
+  uncatIds: Set<string>;
+  onEdit: (id: string) => void;
+  emptyText: string;
+}) {
+  if (!list.length) {
+    return (
+      <div className="card muted" style={{ textAlign: 'center' }}>
+        {emptyText}
+      </div>
+    );
+  }
+  const out: ReactNode[] = [];
+  let lastDate = '';
+  for (const t of list) {
+    if (t.date !== lastDate) {
+      lastDate = t.date;
+      out.push(
+        <div key={`d-${t.date}`} className="txn-date">
+          {formatDate(t.date)}
+        </div>,
+      );
+    }
+    const category = uncatIds.has(t.id)
+      ? null
+      : t.splits?.length
+        ? `Split (${t.splits.length})`
+        : t.transferAccountId && !t.categoryId
+          ? 'Transfer'
+          : categoryName(data, t.categoryId);
+    const balance = running.get(t.id);
+    const details = [showAccount ? accountsById.get(t.accountId)?.name : '', t.memo].filter(Boolean).join(' · ');
+    out.push(
+      <div key={t.id} className="txn-card">
+        <button
+          className={`cleared-btn ${t.cleared}`}
+          aria-label={t.cleared === 'reconciled' ? 'Reconciled' : t.cleared === 'cleared' ? 'Cleared, tap to unclear' : 'Uncleared, tap to clear'}
+          onClick={() => setCleared(t.id, NEXT_CLEARED[t.cleared])}
+        >
+          {t.cleared === 'reconciled' ? '🔒' : 'C'}
+        </button>
+        <button className="txn-main" onClick={() => onEdit(t.id)}>
+          <span className="txn-top">
+            <span className="txn-payee">{t.payee}</span>
+            <span className={`txn-amt${t.amount > 0 ? ' pos' : ''}`}>{formatMoney(t.amount)}</span>
+          </span>
+          <span className="txn-meta">
+            <span className="txn-cat">
+              {category === null ? <span className="uncat">Needs category</span> : category}
+              {details && ` · ${details}`}
+            </span>
+            {balance !== undefined && <span className="txn-bal">{formatMoney(balance)}</span>}
+          </span>
+        </button>
+      </div>,
+    );
+  }
+  return <div className="txn-list">{out}</div>;
 }
 
 function BulkBar({ data, ids, onDone }: { data: BudgetData; ids: string[]; onDone: () => void }) {

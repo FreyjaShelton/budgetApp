@@ -1,6 +1,17 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
 import { RTA, type BudgetData, type Cents } from '../types';
+
+export function useMediaQuery(query: string): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia(query);
+      mq.addEventListener('change', cb);
+      return () => mq.removeEventListener('change', cb);
+    },
+    () => window.matchMedia(query).matches,
+  );
+}
 
 export function Money({ cents, colored = false }: { cents: Cents; colored?: boolean }) {
   const cls = colored ? (cents < 0 ? 'neg' : cents > 0 ? 'pos' : '') : cents < 0 ? 'neg' : '';
