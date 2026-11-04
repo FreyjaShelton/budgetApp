@@ -236,6 +236,11 @@ function sumField(m: Map<string, CategoryMonth>, f: keyof CategoryMonth): Cents 
   return s;
 }
 
+/** Lookup of one category's assigned amount by month, from computeBudget's result. */
+export function assignedHistory(months: Map<MonthKey, MonthSummary>, categoryId: string): (m: MonthKey) => Cents {
+  return (m) => months.get(m)?.categories.get(categoryId)?.assigned ?? 0;
+}
+
 export function getMonth(data: BudgetData, month: MonthKey): MonthSummary {
   const all = computeBudget(data, month);
   return all.get(month)!;
@@ -251,7 +256,17 @@ export interface TargetStatus {
   label: string;
 }
 
-export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey): TargetStatus | null {
+/**
+ * `assignedIn(m)` gives this category's assigned amount in an earlier month m. Repeating targets
+ * need it: after the first due date, each cycle asks for a fresh full amount to be set aside,
+ * whatever balance is left over (e.g. the bill hasn't been recorded as paid).
+ */
+export function targetStatus(
+  cat: Category,
+  cm: CategoryMonth,
+  month: MonthKey,
+  assignedIn: (m: MonthKey) => Cents = () => 0,
+): TargetStatus | null {
   const t = cat.target;
   if (!t) return null;
   const ratio = (num: number, den: number) => (den <= 0 ? 1 : Math.max(0, Math.min(1, num / den)));
@@ -273,15 +288,29 @@ export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey):
       };
     }
     case 'byDate': {
-      const due = nextDueDate(t, month);
+      const { due, previousDue } = dueDates(t, month);
       const monthsLeft = Math.max(1, monthsBetweenInclusive(month, monthOf(due)));
-      const remaining = Math.max(0, t.amount - cm.carryIn);
-      const perMonth = Math.ceil(remaining / monthsLeft);
       const by = t.date || t.repeat ? formatDate(due) : formatMonth(t.month);
+      const label = `Have ${fmtShort(t.amount)} by ${by}${t.repeat ? `, ${repeatLabel(t.repeat)}` : ''}`;
+
+      if (previousDue) {
+        // Later cycle of a repeating target: count only money assigned since the last due date.
+        let setAside = 0;
+        for (let m = addMonths(monthOf(previousDue), 1); m < month; m = addMonths(m, 1)) setAside += assignedIn(m);
+        const perMonth = Math.ceil(Math.max(0, t.amount - setAside) / monthsLeft);
+        return {
+          needed: Math.max(0, perMonth - cm.assigned),
+          progress: ratio(setAside + cm.assigned, t.amount),
+          label,
+        };
+      }
+
+      // First (or only) cycle: money already in the category counts toward the goal.
+      const perMonth = Math.ceil(Math.max(0, t.amount - cm.carryIn) / monthsLeft);
       return {
         needed: Math.max(0, perMonth - cm.assigned),
         progress: ratio(cm.available, t.amount),
-        label: `Have ${fmtShort(t.amount)} by ${by}${t.repeat ? `, ${repeatLabel(t.repeat)}` : ''}`,
+        label,
       };
     }
     case 'balance':
@@ -298,12 +327,17 @@ export function targetStatus(cat: Category, cm: CategoryMonth, month: MonthKey):
  * occurrence (date, date + interval, ...) that falls in or after `month`.
  */
 export function nextDueDate(t: Extract<Target, { type: 'byDate' }>, month: MonthKey): DateKey {
+  return dueDates(t, month).due;
+}
+
+/** The due date for `month`, and for a repeating target past its first cycle, the one before it. */
+function dueDates(t: Extract<Target, { type: 'byDate' }>, month: MonthKey): { due: DateKey; previousDue?: DateKey } {
   const first = t.date ?? endOfMonth(t.month);
-  if (!t.repeat) return first;
+  if (!t.repeat) return { due: first };
   const step = repeatMonths(t.repeat);
   const behind = monthDiff(monthOf(first), month);
   const k = behind > 0 ? Math.ceil(behind / step) : 0;
-  return addMonthsToDate(first, k * step);
+  return { due: addMonthsToDate(first, k * step), previousDue: k > 0 ? addMonthsToDate(first, (k - 1) * step) : undefined };
 }
 
 export function repeatMonths(r: TargetRepeat): number {

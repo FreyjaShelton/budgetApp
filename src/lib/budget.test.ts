@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RTA, type Account, type BudgetData, type Transaction } from '../types';
-import { computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
+import { assignedHistory, computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
 
 const checking: Account = { id: 'chk', name: 'Checking', type: 'checking', onBudget: true, closed: false, sortOrder: 0 };
 const card: Account = { id: 'cc', name: 'Visa', type: 'creditCard', onBudget: true, closed: false, sortOrder: 1 };
@@ -197,11 +197,41 @@ describe('targetStatus', () => {
     const jan = targetStatus(c, base, '2027-01')!;
     expect(jan.needed).toBe(10000);
     expect(jan.label).toBe('Have $600 by Jun 15, 2027, every 6 months');
-    // Halfway through a cycle with $300 saved: $100/month still.
-    expect(targetStatus(c, { ...base, carryIn: 30000, available: 30000 }, '2027-04')!.needed).toBe(10000);
+    // Halfway through a cycle, having set aside $100 in Jan, Feb and Mar: still $100/month.
+    const history = (m: string) => (['2027-01', '2027-02', '2027-03'].includes(m) ? 10000 : 0);
+    expect(targetStatus(c, { ...base, carryIn: 30000, available: 30000 }, '2027-04', history)!.needed).toBe(10000);
     // Due month itself still points at that month's date; the next cycle is Dec again.
     expect(nextDueDate(insurance, '2027-06')).toBe('2027-06-15');
     expect(nextDueDate(insurance, '2027-07')).toBe('2027-12-15');
+  });
+
+  it('repeating by-date asks for a fresh amount each cycle even if money is left over', () => {
+    // $600 due Mar 15, 2027, every 6 months; the March bill was never recorded, so $600 carries into April.
+    const t = { type: 'byDate' as const, amount: 60000, month: '2027-03', date: '2027-03-15', repeat: { every: 6, unit: 'month' as const } };
+    const c = { ...cat, target: t };
+    const april = targetStatus(c, { ...base, carryIn: 60000, available: 60000 }, '2027-04')!;
+    expect(april.label).toBe('Have $600 by Sep 15, 2027, every 6 months');
+    expect(april.needed).toBe(10000); // $600 over Apr..Sep
+    // Once April's $100 is assigned, nothing more is needed that month.
+    expect(targetStatus(c, { ...base, carryIn: 60000, assigned: 10000, available: 70000 }, '2027-04')!.needed).toBe(0);
+    // The first cycle still counts money already in the category.
+    expect(targetStatus(c, { ...base, carryIn: 60000, available: 60000 }, '2027-02')!.needed).toBe(0);
+  });
+
+  it('repeating targets read earlier assignments from the computed budget', () => {
+    const target = { type: 'byDate' as const, amount: 60000, month: '2027-03', date: '2027-03-15', repeat: { every: 6, unit: 'month' as const } };
+    const d = data({
+      transactions: [tx({ accountId: 'chk', date: '2026-10-01', amount: 500000, categoryId: RTA })],
+      categories: [{ id: 'ins', groupId: 'g', name: 'Car insurance', sortOrder: 0, hidden: false, target }],
+      // Saved $600 for March (never recorded as spent), then $100 in April and May for September.
+      assignments: [asg('2026-10', 'ins', 60000), asg('2027-04', 'ins', 10000), asg('2027-05', 'ins', 10000)],
+    });
+    const months = computeBudget(d, '2027-06', '2027-06');
+    const cat = d.categories[0];
+    const status = (m: string) => targetStatus(cat, months.get(m)!.categories.get('ins')!, m, assignedHistory(months, 'ins'))!;
+    expect(status('2027-04').needed).toBe(0); // $100 already assigned in April
+    expect(status('2027-06').needed).toBe(10000); // $400 left over Jun..Sep
+    expect(months.get('2027-06')!.categories.get('ins')!.available).toBe(80000);
   });
 
   it('repeating by-date handles years and short months', () => {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { deleteCategory, moveCategory, moveMoney, setAssigned, setTarget, updateCategory } from '../actions';
-import { targetStatus, type CategoryMonth, type MonthSummary } from '../lib/budget';
+import { assignedHistory, targetStatus, type CategoryMonth, type MonthSummary } from '../lib/budget';
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
 import { addMonths, currentMonth, endOfMonth, monthOf, today } from '../lib/month';
 import type { BudgetData, Category, Cents, MonthKey, Target } from '../types';
@@ -23,7 +23,7 @@ export function CategoryInspector({
   allMonths: Map<MonthKey, MonthSummary>;
   onClose: () => void;
 }) {
-  const ts = targetStatus(cat, cm, month);
+  const ts = targetStatus(cat, cm, month, assignedHistory(allMonths, cat.id));
   const isPayment = !!cat.linkedAccountId;
 
   // Average assigned / spent over the 3 months before this one.

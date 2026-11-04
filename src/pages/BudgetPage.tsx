@@ -4,7 +4,7 @@ import { addCategory, addGroup, assignMany, deleteGroup, moveGroup, renameGroup,
 import { CategoryInspector } from '../components/CategoryInspector';
 import { Money, MoneyInput } from '../components/common';
 import { categoryBar, type SegmentKind } from '../lib/bars';
-import { computeBudget, emptyCategoryMonth, targetStatus, uncategorized, type CategoryMonth, type MonthSummary } from '../lib/budget';
+import { assignedHistory, computeBudget, emptyCategoryMonth, targetStatus, uncategorized, type CategoryMonth, type MonthSummary } from '../lib/budget';
 import { formatMoney } from '../lib/money';
 import { addMonths, currentMonth, formatMonth } from '../lib/month';
 import type { BudgetData, Category, MonthKey } from '../types';
@@ -45,11 +45,11 @@ export function BudgetPage({ data }: { data: BudgetData }) {
     const m = new Map<string, number>();
     for (const c of data.categories) {
       if (c.hidden) continue;
-      const s = targetStatus(c, summary.categories.get(c.id) ?? emptyCategoryMonth(), month);
+      const s = targetStatus(c, summary.categories.get(c.id) ?? emptyCategoryMonth(), month, assignedHistory(months, c.id));
       if (s && s.needed > 0) m.set(c.id, s.needed);
     }
     return m;
-  }, [data.categories, summary, month]);
+  }, [data.categories, summary, month, months]);
   const underfundedTotal = [...underfunded.values()].reduce((a, b) => a + b, 0);
 
   const overspent = data.categories.filter((c) => (summary.categories.get(c.id)?.available ?? 0) < 0);
@@ -160,6 +160,7 @@ export function BudgetPage({ data }: { data: BudgetData }) {
                           cat={c}
                           cm={cm(c.id)}
                           month={month}
+                          assignedIn={assignedHistory(months, c.id)}
                           selected={selected === c.id}
                           onSelect={() => setSelected(selected === c.id ? null : c.id)}
                         />
@@ -299,16 +300,18 @@ function CategoryRow({
   cat,
   cm,
   month,
+  assignedIn,
   selected,
   onSelect,
 }: {
   cat: Category;
   cm: CategoryMonth;
   month: MonthKey;
+  assignedIn: (m: MonthKey) => number;
   selected: boolean;
   onSelect: () => void;
 }) {
-  const ts = targetStatus(cat, cm, month);
+  const ts = targetStatus(cat, cm, month, assignedIn);
   let pill = cm.available > 0 ? 'positive' : 'zero';
   if (cm.available < 0) pill = cm.cashOverspent > 0 ? 'cash' : 'credit';
   else if (ts && ts.needed > 0) pill = 'under';
