@@ -187,10 +187,10 @@ table.grid tr.group td { background: var(--surface-2); font-weight: 600; }
 table.grid tr.cat { cursor: pointer; }
 table.grid tr.cat:hover td { background: var(--surface-2); }
 table.grid tr.selected td { background: var(--accent-soft) !important; }
-table.grid td.assigned input { width: 110px; text-align: right; padding: 3px 6px; border-color: transparent; background: transparent; }
+table.grid td.assigned input { width: 100%; text-align: right; padding: 3px 6px; border-color: transparent; background: transparent; }
 table.grid tr.cat:hover td.assigned input, table.grid td.assigned input:focus { border-color: var(--border); background: var(--surface); }
 .cat-name { display: flex; flex-direction: column; gap: 3px; }
-.cat-bar { display: flex; gap: 2px; height: 6px; width: 100%; max-width: 260px; }
+.cat-bar { display: flex; gap: 2px; height: 6px; width: 100%; }
 .cat-bar .seg { min-width: 3px; height: 100%; }
 .cat-bar .seg:first-child { border-radius: 3px 0 0 3px; }
 .cat-bar .seg:last-child { border-radius: 0 3px 3px 0; }
@@ -350,3 +350,16 @@ table.grid th.num { text-align: right; }
 /* Line labels up with the digits inside the Assigned input (border + padding) and the Available pill. */
 table.grid th.col-assigned { padding-right: 17px; }
 table.grid th.col-available { padding-right: 20px; }
+/* Budget table: number columns are sized to their contents, so the Category column (and its bar) gets the rest. */
+table.grid th.col-assigned { width: 118px; }
+table.grid th.col-activity { width: 108px; }
+table.grid th.col-available { width: 130px; }
+@media (max-width: 820px) {
+  /* Phones: tighter number columns so category names and bars get more room. */
+  table.grid th.col-assigned { width: 92px; padding-right: 13px; }
+  table.grid th.col-available { width: 100px; padding-right: 16px; }
+  table.grid td.assigned { padding-left: 4px; padding-right: 6px; }
+  table.grid td.assigned input { padding: 3px 6px; }
+  .pill { min-width: 0; padding: 2px 8px; }
+  table.grid td, table.grid th { padding-left: 8px; padding-right: 8px; }
+}
