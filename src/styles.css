@@ -344,3 +344,9 @@ table.register .cat-field .btn { padding: 3px 6px; font-size: 11px; }
   .show-mobile { display: block; }
   .activity-scroll { max-height: none; }
 }
+
+/* Number column headers line up with the numbers (the generic `table.grid th` rule left-aligns). */
+table.grid th.num { text-align: right; }
+/* Line labels up with the digits inside the Assigned input (border + padding) and the Available pill. */
+table.grid th.col-assigned { padding-right: 17px; }
+table.grid th.col-available { padding-right: 20px; }

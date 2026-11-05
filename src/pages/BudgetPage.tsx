@@ -132,9 +132,9 @@ export function BudgetPage({ data }: { data: BudgetData }) {
             <thead>
               <tr>
                 <th>Category</th>
-                <th className="num">Assigned</th>
+                <th className="num col-assigned">Assigned</th>
                 <th className="num hide-mobile">Activity</th>
-                <th className="num">Available</th>
+                <th className="num col-available">Available</th>
               </tr>
             </thead>
             <tbody>
