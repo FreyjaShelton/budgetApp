@@ -64,6 +64,7 @@ export function MoneyInput({
   autoFocus,
   className,
   ariaLabel,
+  onFocus,
 }: {
   value: Cents;
   onCommit: (cents: Cents) => void;
@@ -71,6 +72,7 @@ export function MoneyInput({
   autoFocus?: boolean;
   className?: string;
   ariaLabel?: string;
+  onFocus?: () => void;
 }) {
   const [text, setText] = useState(value ? centsToInput(value) : '');
   const [focused, setFocused] = useState(false);
@@ -97,6 +99,7 @@ export function MoneyInput({
       autoFocus={autoFocus}
       aria-label={ariaLabel}
       onFocus={(e) => {
+        onFocus?.();
         setFocused(true);
         setText(value ? centsToInput(value) : '');
         requestAnimationFrame(() => e.target.select());

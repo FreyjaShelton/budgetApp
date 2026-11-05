@@ -163,6 +163,7 @@ export function BudgetPage({ data }: { data: BudgetData }) {
                           assignedIn={assignedHistory(months, c.id)}
                           selected={selected === c.id}
                           onSelect={() => setSelected(selected === c.id ? null : c.id)}
+                          onFocusAssigned={() => setSelected(c.id)}
                         />
                       ))}
                     </GroupRows>
@@ -303,13 +304,17 @@ function CategoryRow({
   assignedIn,
   selected,
   onSelect,
+  onFocusAssigned,
 }: {
   cat: Category;
   cm: CategoryMonth;
   month: MonthKey;
   assignedIn: (m: MonthKey) => number;
   selected: boolean;
+  /** Clicking the row toggles the selection. */
   onSelect: () => void;
+  /** Focusing the Assigned box (click or Tab) always selects, so typing never closes the panel. */
+  onFocusAssigned: () => void;
 }) {
   const ts = targetStatus(cat, cm, month, assignedIn);
   let pill = cm.available > 0 ? 'positive' : 'zero';
@@ -329,7 +334,12 @@ function CategoryRow({
         </div>
       </td>
       <td className="num assigned" onClick={(e) => e.stopPropagation()}>
-        <MoneyInput value={cm.assigned} onCommit={(v) => setAssigned(month, cat.id, v)} ariaLabel={`Assigned to ${cat.name}`} />
+        <MoneyInput
+          value={cm.assigned}
+          onCommit={(v) => setAssigned(month, cat.id, v)}
+          onFocus={onFocusAssigned}
+          ariaLabel={`Assigned to ${cat.name}`}
+        />
       </td>
       <td className="num hide-mobile">
         <Money cents={cm.activity} />
