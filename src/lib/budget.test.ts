@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RTA, type Account, type BudgetData, type Transaction } from '../types';
-import { assignedHistory, computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
+import { activityLines, assignedHistory, computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
 
 const checking: Account = { id: 'chk', name: 'Checking', type: 'checking', onBudget: true, closed: false, sortOrder: 0 };
 const card: Account = { id: 'cc', name: 'Visa', type: 'creditCard', onBudget: true, closed: false, sortOrder: 1 };
@@ -165,6 +165,45 @@ describe('computeBudget', () => {
     });
     expect(computeBudget(d, '2026-01').get('2026-01')!.readyToAssign).toBe(0);
     expect(uncategorized(d)).toHaveLength(0);
+  });
+});
+
+describe('activityLines', () => {
+  it("lists exactly the transactions behind a category's activity", () => {
+    const d = data({
+      transactions: [
+        tx({ accountId: 'chk', date: '2026-01-01', amount: 300000, categoryId: RTA }),
+        tx({ accountId: 'chk', date: '2026-01-05', amount: -4000, categoryId: 'groc', payee: 'Market' }),
+        tx({ accountId: 'cc', date: '2026-01-06', amount: -2500, categoryId: 'groc', payee: 'On card' }),
+        tx({ accountId: 'cc', date: '2026-01-07', amount: 500, categoryId: 'groc', payee: 'Refund' }),
+        tx({
+          accountId: 'chk',
+          date: '2026-01-08',
+          amount: -5000,
+          payee: 'Big store',
+          splits: [
+            { categoryId: 'groc', amount: -3000 },
+            { categoryId: 'rent', amount: -2000 },
+          ],
+        }),
+        tx({ accountId: 'chk', date: '2026-02-01', amount: -9999, categoryId: 'groc', payee: 'Next month' }),
+        // Card payment from checking: counts for the card's payment category only.
+        tx({ accountId: 'chk', date: '2026-01-20', amount: -2000, transferAccountId: 'cc' }),
+        tx({ accountId: 'cc', date: '2026-01-20', amount: 2000, transferAccountId: 'chk', payee: 'Payment' }),
+      ],
+      assignments: [asg('2026-01', 'groc', 20000)],
+    });
+    const jan = computeBudget(d, '2026-01').get('2026-01')!;
+    const groc = activityLines(d, d.categories[0], '2026-01');
+    expect(groc.map((l) => l.txn.payee)).toEqual(['Big store', 'Refund', 'On card', 'Market']);
+    expect(groc.find((l) => l.txn.payee === 'Big store')).toMatchObject({ amount: -3000, isSplit: true });
+    expect(groc.reduce((s, l) => s + l.amount, 0)).toBe(jan.categories.get('groc')!.activity);
+
+    // Payment category: payments are listed; the rest is spending moved in from categories.
+    const pay = activityLines(d, d.categories[2], '2026-01');
+    expect(pay.map((l) => [l.txn.payee, l.amount])).toEqual([['Payment', -2000]]);
+    const payActivity = jan.categories.get('ccpay')!.activity;
+    expect(payActivity - pay.reduce((s, l) => s + l.amount, 0)).toBe(2000); // $25 spent - $5 refund on the card
   });
 });
 

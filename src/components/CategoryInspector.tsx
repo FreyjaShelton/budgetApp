@@ -14,6 +14,7 @@ export function CategoryInspector({
   prev,
   allMonths,
   onClose,
+  onShowActivity,
 }: {
   data: BudgetData;
   cat: Category;
@@ -22,6 +23,7 @@ export function CategoryInspector({
   prev?: CategoryMonth;
   allMonths: Map<MonthKey, MonthSummary>;
   onClose: () => void;
+  onShowActivity: () => void;
 }) {
   const ts = targetStatus(cat, cm, month, assignedHistory(allMonths, cat.id));
   const isPayment = !!cat.linkedAccountId;
@@ -63,7 +65,9 @@ export function CategoryInspector({
           </div>
           <div className="stat">
             <span className="muted">Activity</span>
-            <Money cents={cm.activity} />
+            <button className="link-btn" onClick={onShowActivity} title="Show this month's transactions">
+              <Money cents={cm.activity} />
+            </button>
           </div>
           <div className="stat total">
             <span>Available</span>

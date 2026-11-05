@@ -329,3 +329,18 @@ tr.txn:hover .row-actions .icon-btn.edit, .row-actions .icon-btn.edit:focus-visi
 }
 table.register .cat-field .btn { padding: 3px 6px; font-size: 11px; }
 .repeat-row { display: grid; grid-template-columns: auto 72px 1fr; gap: 8px; align-items: center; }
+
+/* A number that opens details: looks like text, underlines on hover. */
+.link-btn {
+  border: 0; background: none; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; cursor: pointer;
+  font: inherit; color: inherit; text-decoration: underline dotted; text-underline-offset: 3px;
+}
+.link-btn:hover { background: var(--surface-2); text-decoration-style: solid; }
+.activity-scroll { max-height: 60vh; overflow: auto; }
+.activity-table tfoot td { border-top: 2px solid var(--border); border-bottom: 0; }
+.tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 999px; font-size: 11px; background: var(--surface-2); color: var(--muted); }
+.show-mobile { display: none; }
+@media (max-width: 820px) {
+  .show-mobile { display: block; }
+  .activity-scroll { max-height: none; }
+}

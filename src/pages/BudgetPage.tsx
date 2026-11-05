@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { addCategory, addGroup, assignMany, deleteGroup, moveGroup, renameGroup, setAssigned } from '../actions';
+import { ActivityModal } from '../components/ActivityModal';
 import { CategoryInspector } from '../components/CategoryInspector';
 import { Money, MoneyInput } from '../components/common';
 import { categoryBar, type SegmentKind } from '../lib/bars';
@@ -25,6 +26,8 @@ export function BudgetPage({ data }: { data: BudgetData }) {
   const [month, setMonthState] = useState<MonthKey>(loadMonth);
   const [selected, setSelected] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  /** Category whose Activity transactions are shown in a pop-up. */
+  const [activityFor, setActivityFor] = useState<string | null>(null);
   const setMonth = (m: MonthKey) => {
     setMonthState(m);
     try {
@@ -164,6 +167,7 @@ export function BudgetPage({ data }: { data: BudgetData }) {
                           selected={selected === c.id}
                           onSelect={() => setSelected(selected === c.id ? null : c.id)}
                           onFocusAssigned={() => setSelected(c.id)}
+                          onShowActivity={() => setActivityFor(c.id)}
                         />
                       ))}
                     </GroupRows>
@@ -188,12 +192,23 @@ export function BudgetPage({ data }: { data: BudgetData }) {
               prev={prevSummary?.categories.get(selectedCat.id)}
               allMonths={months}
               onClose={() => setSelected(null)}
+              onShowActivity={() => setActivityFor(selectedCat.id)}
             />
           ) : (
             <MonthOverview summary={summary} />
           )}
         </aside>
       </div>
+
+      {activityFor && data.categories.some((c) => c.id === activityFor) && (
+        <ActivityModal
+          data={data}
+          category={data.categories.find((c) => c.id === activityFor)!}
+          month={month}
+          activity={cm(activityFor).activity}
+          onClose={() => setActivityFor(null)}
+        />
+      )}
     </div>
   );
 }
@@ -305,6 +320,7 @@ function CategoryRow({
   selected,
   onSelect,
   onFocusAssigned,
+  onShowActivity,
 }: {
   cat: Category;
   cm: CategoryMonth;
@@ -315,6 +331,7 @@ function CategoryRow({
   onSelect: () => void;
   /** Focusing the Assigned box (click or Tab) always selects, so typing never closes the panel. */
   onFocusAssigned: () => void;
+  onShowActivity: () => void;
 }) {
   const ts = targetStatus(cat, cm, month, assignedIn);
   let pill = cm.available > 0 ? 'positive' : 'zero';
@@ -341,8 +358,10 @@ function CategoryRow({
           ariaLabel={`Assigned to ${cat.name}`}
         />
       </td>
-      <td className="num hide-mobile">
-        <Money cents={cm.activity} />
+      <td className="num hide-mobile" onClick={(e) => e.stopPropagation()}>
+        <button className="link-btn" onClick={onShowActivity} title="Show this month's transactions" aria-label={`${cat.name} activity: show transactions`}>
+          <Money cents={cm.activity} />
+        </button>
       </td>
       <td className="num">
         <span className={`pill ${pill}`} title={PILL_TITLES[pill]}>

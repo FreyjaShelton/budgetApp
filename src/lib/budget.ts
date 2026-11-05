@@ -67,8 +67,44 @@ interface MonthBuckets {
   income: Cents;
 }
 
-function bucketize(data: BudgetData): Map<MonthKey, MonthBuckets> {
+/** How one transaction (or split part) affects the budget. */
+export type BudgetEntry =
+  | { kind: 'income'; txn: Transaction; amount: Cents }
+  /** Spending/refund in a category. `cardId` is set when it happened on a credit card. */
+  | { kind: 'category'; txn: Transaction; amount: Cents; categoryId: string; cardId?: string; isSplit: boolean }
+  /** Money moved from a budget account to a card (positive = payment). */
+  | { kind: 'cardPayment'; txn: Transaction; amount: Cents; cardId: string };
+
+/**
+ * The single source of truth for which transactions count where. Used by the engine and by
+ * anything that lists the transactions behind a number, so the two always agree.
+ */
+export function* budgetEntries(data: BudgetData): Generator<BudgetEntry> {
   const accounts = new Map(data.accounts.map((a) => [a.id, a]));
+  for (const t of data.transactions) {
+    const acct = accounts.get(t.accountId);
+    if (!acct || !acct.onBudget) continue;
+    const isCard = acct.type === 'creditCard';
+
+    if (t.transferAccountId) {
+      const other = accounts.get(t.transferAccountId);
+      // Payment to a card from another budget account: lowers that card's payment category.
+      if (isCard && other?.onBudget && other.type !== 'creditCard') yield { kind: 'cardPayment', txn: t, amount: t.amount, cardId: acct.id };
+      // Budget-to-budget transfers have no category; budget-to-tracking transfers do (handled below).
+      if (other?.onBudget) continue;
+    }
+    if (t.isStartingBalance && isCard) continue;
+
+    const isSplit = !!t.splits?.length;
+    for (const p of parts(t)) {
+      if (p.categoryId === RTA) yield { kind: 'income', txn: t, amount: p.amount };
+      else if (p.categoryId)
+        yield { kind: 'category', txn: t, amount: p.amount, categoryId: p.categoryId, cardId: isCard ? acct.id : undefined, isSplit };
+    }
+  }
+}
+
+function bucketize(data: BudgetData): Map<MonthKey, MonthBuckets> {
   const out = new Map<MonthKey, MonthBuckets>();
   const get = (m: MonthKey) => {
     let b = out.get(m);
@@ -79,38 +115,45 @@ function bucketize(data: BudgetData): Map<MonthKey, MonthBuckets> {
     return b;
   };
 
-  for (const t of data.transactions) {
-    const acct = accounts.get(t.accountId);
-    if (!acct || !acct.onBudget) continue;
-    const b = get(monthOf(t.date));
-    const isCard = acct.type === 'creditCard';
-
-    if (t.transferAccountId) {
-      const other = accounts.get(t.transferAccountId);
-      // Payment to a card from another budget account: lowers that card's payment category.
-      if (isCard && other?.onBudget && other.type !== 'creditCard') {
-        b.payments.set(acct.id, (b.payments.get(acct.id) ?? 0) + t.amount);
-      }
-      // Budget-to-budget transfers have no category; budget-to-tracking transfers do (handled below).
-      if (other?.onBudget) continue;
-    }
-    if (t.isStartingBalance && isCard) continue;
-
-    for (const p of parts(t)) {
-      if (p.categoryId === RTA) {
-        b.income += p.amount;
-      } else if (p.categoryId) {
-        if (isCard) {
-          let byCard = b.credit.get(p.categoryId);
-          if (!byCard) b.credit.set(p.categoryId, (byCard = new Map()));
-          byCard.set(acct.id, (byCard.get(acct.id) ?? 0) + p.amount);
-        } else {
-          b.cash.set(p.categoryId, (b.cash.get(p.categoryId) ?? 0) + p.amount);
-        }
-      }
+  for (const e of budgetEntries(data)) {
+    const b = get(monthOf(e.txn.date));
+    if (e.kind === 'income') b.income += e.amount;
+    else if (e.kind === 'cardPayment') b.payments.set(e.cardId, (b.payments.get(e.cardId) ?? 0) + e.amount);
+    else if (e.cardId) {
+      let byCard = b.credit.get(e.categoryId);
+      if (!byCard) b.credit.set(e.categoryId, (byCard = new Map()));
+      byCard.set(e.cardId, (byCard.get(e.cardId) ?? 0) + e.amount);
+    } else {
+      b.cash.set(e.categoryId, (b.cash.get(e.categoryId) ?? 0) + e.amount);
     }
   }
   return out;
+}
+
+export interface ActivityLine {
+  txn: Transaction;
+  /** This category's part of the transaction (a split may be only part of it). */
+  amount: Cents;
+  isSplit: boolean;
+}
+
+/**
+ * The transactions behind a category's Activity for a month, newest first.
+ * For a credit card payment category, these are the payments to the card (shown as negative,
+ * since they use up the set-aside money); the rest of its activity is budgeted card spending
+ * moved in from other categories, which isn't a transaction of its own.
+ */
+export function activityLines(data: BudgetData, category: Category, month: MonthKey): ActivityLine[] {
+  const out: ActivityLine[] = [];
+  for (const e of budgetEntries(data)) {
+    if (monthOf(e.txn.date) !== month) continue;
+    if (category.linkedAccountId) {
+      if (e.kind === 'cardPayment' && e.cardId === category.linkedAccountId) out.push({ txn: e.txn, amount: -e.amount, isSplit: false });
+    } else if (e.kind === 'category' && e.categoryId === category.id) {
+      out.push({ txn: e.txn, amount: e.amount, isSplit: e.isSplit });
+    }
+  }
+  return out.sort((a, b) => b.txn.date.localeCompare(a.txn.date) || b.txn.id.localeCompare(a.txn.id));
 }
 
 /** First month with any data, or the current month. */
