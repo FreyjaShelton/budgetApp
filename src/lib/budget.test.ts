@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RTA, type Account, type BudgetData, type Transaction } from '../types';
-import { activityLines, assignedHistory, computeBudget, nextDueDate, targetStatus, uncategorized } from './budget';
+import { activityLines, assignedHistory, computeBudget, isAboveTarget, nextDueDate, targetStatus, uncategorized } from './budget';
 
 const checking: Account = { id: 'chk', name: 'Checking', type: 'checking', onBudget: true, closed: false, sortOrder: 0 };
 const card: Account = { id: 'cc', name: 'Visa', type: 'creditCard', onBudget: true, closed: false, sortOrder: 1 };
@@ -224,6 +224,25 @@ describe('targetStatus', () => {
   it('by-date spreads the remainder over the months left', () => {
     const s = targetStatus({ ...cat, target: { type: 'byDate', amount: 120000, month: '2026-12' } }, { ...base, carryIn: 0 }, '2026-01');
     expect(s!.needed).toBe(10000);
+  });
+
+  it('flags categories holding more than their target', () => {
+    const balance = { ...cat, target: { type: 'balance' as const, amount: 100000 } };
+    const at = (available: number) => {
+      const cm = { ...base, carryIn: available, available };
+      return isAboveTarget(balance, cm, targetStatus(balance, cm, '2026-01'));
+    };
+    expect(at(150000)).toBe(true);
+    expect(at(100000)).toBe(false); // exactly at target is "funded", not "above"
+    expect(at(50000)).toBe(false);
+    // Needs more this month -> underfunded, even if the balance is high.
+    const monthly = { ...cat, target: { type: 'monthly' as const, amount: 10000, mode: 'setAside' as const } };
+    const cm = { ...base, carryIn: 50000, available: 50000 };
+    expect(isAboveTarget(monthly, cm, targetStatus(monthly, cm, '2026-01'))).toBe(false);
+    const funded = { ...cm, assigned: 10000, available: 60000 };
+    expect(isAboveTarget(monthly, funded, targetStatus(monthly, funded, '2026-01'))).toBe(true);
+    // No target -> never.
+    expect(isAboveTarget(cat, cm, null)).toBe(false);
   });
 
   it('repeating by-date: car insurance of $600 every 6 months', () => {

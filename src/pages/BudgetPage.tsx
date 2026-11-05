@@ -5,7 +5,7 @@ import { ActivityModal } from '../components/ActivityModal';
 import { CategoryInspector } from '../components/CategoryInspector';
 import { Money, MoneyInput } from '../components/common';
 import { categoryBar, type SegmentKind } from '../lib/bars';
-import { assignedHistory, computeBudget, emptyCategoryMonth, targetStatus, uncategorized, type CategoryMonth, type MonthSummary } from '../lib/budget';
+import { assignedHistory, computeBudget, isAboveTarget, emptyCategoryMonth, targetStatus, uncategorized, type CategoryMonth, type MonthSummary } from '../lib/budget';
 import { formatMoney } from '../lib/money';
 import { addMonths, currentMonth, formatMonth } from '../lib/month';
 import type { BudgetData, Category, MonthKey } from '../types';
@@ -283,6 +283,7 @@ function GroupRows({
 }
 
 const PILL_TITLES: Record<string, string> = {
+  ahead: 'More than the target: funded beyond your goal',
   positive: 'Funded',
   zero: 'Nothing available',
   cash: 'Overspent: comes out of next month unless covered',
@@ -299,12 +300,12 @@ const SEGMENT_LABELS: Record<SegmentKind, string> = {
 };
 
 /** Striped = spent, solid = still available, pale = still needed for the target. */
-function CategoryBar({ cm, needed }: { cm: CategoryMonth; needed: number }) {
+function CategoryBar({ cm, needed, ahead }: { cm: CategoryMonth; needed: number; ahead: boolean }) {
   const segments = categoryBar(cm, needed);
   if (!segments.length) return null;
   const label = segments.map((s) => `${formatMoney(s.amount)} ${SEGMENT_LABELS[s.kind]}`).join(' · ');
   return (
-    <div className="cat-bar" title={label} role="img" aria-label={label}>
+    <div className={`cat-bar${ahead ? ' ahead' : ''}`} title={label} role="img" aria-label={label}>
       {segments.map((s) => (
         <div key={s.kind} className={`seg ${s.kind}`} style={{ flexGrow: s.fraction }} />
       ))}
@@ -337,6 +338,7 @@ function CategoryRow({
   let pill = cm.available > 0 ? 'positive' : 'zero';
   if (cm.available < 0) pill = cm.cashOverspent > 0 ? 'cash' : 'credit';
   else if (ts && ts.needed > 0) pill = 'under';
+  else if (isAboveTarget(cat, cm, ts)) pill = 'ahead';
 
   return (
     <tr className={`cat${selected ? ' selected' : ''}`} onClick={onSelect}>
@@ -346,7 +348,7 @@ function CategoryRow({
             {cat.name}
             {cat.hidden && <span className="muted"> (hidden)</span>}
           </span>
-          <CategoryBar cm={cm} needed={ts?.needed ?? 0} />
+          <CategoryBar cm={cm} needed={ts?.needed ?? 0} ahead={pill === 'ahead'} />
           {ts && ts.needed > 0 && <span className="muted" style={{ fontSize: 12 }}>{formatMoney(ts.needed)} more needed this month</span>}
         </div>
       </td>
@@ -368,6 +370,11 @@ function CategoryRow({
           {pill === 'cash' && (
             <span className="icon" aria-hidden>
               !
+            </span>
+          )}
+          {pill === 'ahead' && (
+            <span className="icon" aria-hidden>
+              ★
             </span>
           )}
           {pill === 'credit' && (
@@ -416,7 +423,7 @@ function MonthOverview({ summary }: { summary: MonthSummary }) {
         </div>
       </div>
       <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-        Click a category to see details, set a target, or move money. Type math like <code>200+45</code> into Assigned. Bars: striped = spent, solid = still available, pale yellow = still needed for the target.
+        Click a category to see details, set a target, or move money. Type math like <code>200+45</code> into Assigned. Bars: striped = spent, solid = still available, pale yellow = still needed for the target. Teal ★ = more than the target.
       </p>
     </div>
   );

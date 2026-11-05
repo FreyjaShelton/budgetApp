@@ -291,6 +291,14 @@ export function getMonth(data: BudgetData, month: MonthKey): MonthSummary {
 
 // ---------- Targets ----------
 
+/**
+ * True when a category has a target, needs nothing more this month, and holds more than the
+ * target amount: money set aside beyond the goal.
+ */
+export function isAboveTarget(cat: Category, cm: CategoryMonth, status: TargetStatus | null): boolean {
+  return !!cat.target && !!status && status.needed === 0 && cm.available > cat.target.amount;
+}
+
 export interface TargetStatus {
   /** Amount still to assign this month to stay on track. */
   needed: Cents;

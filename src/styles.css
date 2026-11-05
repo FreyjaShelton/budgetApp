@@ -24,6 +24,10 @@
   --warn: #6b4a00;
   --warn-soft: #fff3bf;
   --warn-pill: #ffe17a;
+  /* Funded beyond the target. Teal, validated against the other status colors (CVD-safe). */
+  --ahead: #0f7d69;
+  --ahead-ink: #ffffff;
+  --ahead-soft: #c2eadf;
   --zero-soft: #eceff3;
   --radius: 8px;
   --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
@@ -58,6 +62,9 @@
     --warn: #ffd43b;
     --warn-soft: #3d3418;
     --warn-pill: #4d3d0c;
+    --ahead: #22b597;
+    --ahead-ink: #04201a;
+    --ahead-soft: #123d35;
     --zero-soft: #262c3c;
     --series-1: #3987e5;
     --series-2: #d95926;
@@ -363,3 +370,8 @@ table.grid th.col-available { width: 130px; }
   .pill { min-width: 0; padding: 2px 8px; }
   table.grid td, table.grid th { padding-left: 8px; padding-right: 8px; }
 }
+
+/* Funded beyond the target: a solid teal pill with a star, and a teal bar. */
+.pill.ahead { background: var(--ahead); color: var(--ahead-ink); }
+.cat-bar.ahead .seg.available { background: var(--ahead); }
+.cat-bar.ahead .seg.spent { background: repeating-linear-gradient(135deg, var(--ahead) 0 2px, var(--ahead-soft) 2px 5px); }
