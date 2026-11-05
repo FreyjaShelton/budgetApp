@@ -89,7 +89,10 @@ export function PayeeCombobox({
     const showing = open && options.length > 0;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if (!open) setOpen(true);
+      if (!open) {
+        setShowAll(true);
+        setOpen(true);
+      }
       setActive((i) => Math.min(options.length - 1, i + 1));
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
@@ -128,11 +131,12 @@ export function PayeeCombobox({
           setShowAll(false);
           setOpen(true);
         }}
-        onFocus={() => {
+        // Focus alone (e.g. opening a transaction for editing) doesn't open the list;
+        // clicking into the field, typing, the ▾ button or ↓ do.
+        onClick={() => {
           setShowAll(true);
           setOpen(true);
         }}
-        onClick={() => setOpen(true)}
         onBlur={() => {
           setOpen(false);
           onBlur?.();
@@ -147,11 +151,9 @@ export function PayeeCombobox({
         onMouseDown={(e) => {
           // Keep focus in the input; just toggle the list.
           e.preventDefault();
-          // If the input wasn't focused, focusing it opens the list; only toggle when it already was.
-          const wasFocused = document.activeElement === inputRef.current;
           inputRef.current?.focus();
           setShowAll(true);
-          setOpen((o) => (wasFocused ? !o : true));
+          setOpen((o) => !o);
         }}
       >
         ▾
