@@ -1,9 +1,11 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
-import { deleteTransactions, payeeCategoryMemory, saveTransaction } from '../actions';
+import { deleteTransactions, saveTransaction } from '../actions';
 import { today } from '../lib/month';
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
+import { payeeHistory } from '../lib/payees';
 import type { BudgetData, Transaction } from '../types';
-import { CategorySelect, MathInput, Modal } from './common';
+import { categoryName, CategorySelect, MathInput, Modal } from './common';
+import { PayeeCombobox } from './PayeeCombobox';
 
 const TRANSFER_RE = /^Transfer\s*:\s*(.+)$/i;
 
@@ -39,8 +41,8 @@ function useTxnForm({ data, txn, accountId, onDone }: EditorProps) {
   );
   const [error, setError] = useState('');
 
-  const memory = useMemo(() => payeeCategoryMemory(data), [data]);
-  const payees = useMemo(() => [...new Set(data.transactions.filter((t) => !t.transferAccountId).map((t) => t.payee))].sort(), [data.transactions]);
+  const payees = useMemo(() => payeeHistory(data), [data]);
+  const lastCategory = useMemo(() => new Map(payees.map((p) => [p.name.toLowerCase(), p.categoryId])), [payees]);
   const account = data.accounts.find((a) => a.id === acct);
   const transferTo = (() => {
     const m = payee.match(TRANSFER_RE);
@@ -53,9 +55,17 @@ function useTxnForm({ data, txn, accountId, onDone }: EditorProps) {
   const sign = total < 0 ? -1 : 1;
   const splitSum = splits?.reduce((s, x) => s + Math.abs(parseMoney(x.amount || '0') ?? 0), 0) ?? 0;
 
+  /** Typed a payee and left the field: fill in its usual category if none is chosen yet. */
   const rememberCategory = () => {
-    const remembered = memory.get(payee.trim().toLowerCase());
+    const remembered = lastCategory.get(payee.trim().toLowerCase());
     if (!categoryId && remembered) setCategoryId(remembered);
+  };
+
+  /** Picked a payee from the list: use the category its last transaction used (unless split). */
+  const pickPayee = (name: string) => {
+    if (TRANSFER_RE.test(name)) return;
+    const remembered = lastCategory.get(name.toLowerCase());
+    if (remembered && !splits) setCategoryId(remembered);
   };
 
   const save = async () => {
@@ -90,7 +100,7 @@ function useTxnForm({ data, txn, accountId, onDone }: EditorProps) {
   return {
     acct, setAcct, date, setDate, payee, setPayee, categoryId, setCategoryId, memo, setMemo,
     outflow, setOutflow, inflow, setInflow, splits, setSplits, error,
-    payees, transferTo, needsCategory, total, splitSum, rememberCategory, save,
+    payees, transferTo, needsCategory, total, splitSum, rememberCategory, pickPayee, save,
   };
 }
 
@@ -111,28 +121,18 @@ function AccountSelect({ data, form }: { data: BudgetData; form: Form }) {
 }
 
 function PayeeInput({ data, form, autoFocus }: { data: BudgetData; form: Form; autoFocus?: boolean }) {
+  const transferNames = data.accounts.filter((a) => a.id !== form.acct && !a.closed).map((a) => `Transfer : ${a.name}`);
   return (
-    <>
-      <input
-        list="payee-list"
-        value={form.payee}
-        autoFocus={autoFocus}
-        placeholder="Payee"
-        aria-label="Payee"
-        onChange={(e) => form.setPayee(e.target.value)}
-        onBlur={form.rememberCategory}
-      />
-      <datalist id="payee-list">
-        {data.accounts
-          .filter((a) => a.id !== form.acct && !a.closed)
-          .map((a) => (
-            <option key={a.id} value={`Transfer : ${a.name}`} />
-          ))}
-        {form.payees.map((p) => (
-          <option key={p} value={p} />
-        ))}
-      </datalist>
-    </>
+    <PayeeCombobox
+      value={form.payee}
+      onChange={form.setPayee}
+      onPick={form.pickPayee}
+      onBlur={form.rememberCategory}
+      payees={form.payees}
+      transferNames={transferNames}
+      categoryLabel={(id) => categoryName(data, id)}
+      autoFocus={autoFocus}
+    />
   );
 }
 
