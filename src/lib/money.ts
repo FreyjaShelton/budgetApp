@@ -12,11 +12,10 @@ export function centsToInput(cents: Cents): string {
 }
 
 /**
- * Parse user input into cents. Accepts "$1,234.56", "-12", "(12.00)", and simple
- * arithmetic such as "100+25.5" or "300/2" so users can do math in amount fields.
- * Returns null when the input can't be understood.
+ * Evaluate a typed number or simple arithmetic: "$1,234.56", "-12", "(12.00)", "100+25.5",
+ * "300/2", "2x3" or "10 ÷ 4". Returns the unrounded value, or null if it can't be understood.
  */
-export function parseMoney(input: string): Cents | null {
+export function evaluateNumber(input: string): number | null {
   let s = input.trim();
   if (!s) return null;
   let negate = false;
@@ -24,12 +23,31 @@ export function parseMoney(input: string): Cents | null {
     negate = true;
     s = s.slice(1, -1);
   }
-  s = s.replace(/[$,\s]/g, '');
+  s = s
+    .replace(/[$,\s]/g, '')
+    .replace(/[×xX]/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/[−–]/g, '-');
   if (!/^[-+]?[\d.]+([-+*/][-+]?[\d.]+)*$/.test(s)) return null;
   const value = evalArithmetic(s);
   if (value === null || !Number.isFinite(value)) return null;
-  const cents = Math.round(value * 100);
-  return negate ? -cents : cents;
+  return negate ? -value : value;
+}
+
+/** Show a computed result in a field: money keeps 2 decimals ("4.00"); rates drop trailing zeros ("6.5"). */
+export function formatComputed(value: number, decimals = 2): string {
+  return decimals === 2 ? value.toFixed(2) : String(Number(value.toFixed(decimals)));
+}
+
+/** True when the text contains arithmetic (an operator after the first character). */
+export function hasMath(input: string): boolean {
+  return /[-+*/×xX÷−–]/.test(input.trim().slice(1));
+}
+
+/** Parse user input into cents, with the same arithmetic support as evaluateNumber. */
+export function parseMoney(input: string): Cents | null {
+  const value = evaluateNumber(input);
+  return value === null ? null : Math.round(value * 100);
 }
 
 /** Evaluates + - * / with normal precedence. Input is pre-validated to digits, dots and operators. */

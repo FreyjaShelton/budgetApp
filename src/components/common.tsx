@@ -1,5 +1,5 @@
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { centsToInput, formatMoney, parseMoney } from '../lib/money';
+import { useEffect, useState, useSyncExternalStore, type InputHTMLAttributes, type ReactNode } from 'react';
+import { centsToInput, evaluateNumber, formatComputed, formatMoney, hasMath, parseMoney } from '../lib/money';
 import { RTA, type BudgetData, type Cents } from '../types';
 
 export function useMediaQuery(query: string): boolean {
@@ -115,6 +115,47 @@ export function MoneyInput({
           setText(value ? centsToInput(value) : '');
           requestAnimationFrame(() => (e.target as HTMLInputElement).blur());
         }
+      }}
+    />
+  );
+}
+
+/**
+ * A number field that understands math. Type "2+2", "120.50*2" or "300/3" and it becomes the
+ * result when you press Enter or leave the field. The value stays a string, so forms parse it
+ * the same way they always have.
+ */
+export function MathInput({
+  value,
+  onChange,
+  decimals = 2,
+  onKeyDown,
+  onBlur,
+  ...rest
+}: Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> & {
+  value: string;
+  onChange: (value: string) => void;
+  /** Decimal places for a computed result (2 for money; more for rates). */
+  decimals?: number;
+}) {
+  const settle = () => {
+    if (!hasMath(value)) return;
+    const result = evaluateNumber(value);
+    if (result !== null) onChange(formatComputed(result, decimals));
+  };
+  return (
+    <input
+      inputMode="decimal"
+      {...rest}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') settle();
+        onKeyDown?.(e);
+      }}
+      onBlur={(e) => {
+        settle();
+        onBlur?.(e);
       }}
     />
   );

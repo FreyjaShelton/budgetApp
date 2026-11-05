@@ -3,7 +3,7 @@ import { deleteTransactions, payeeCategoryMemory, saveTransaction } from '../act
 import { today } from '../lib/month';
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
 import type { BudgetData, Transaction } from '../types';
-import { CategorySelect, Modal } from './common';
+import { CategorySelect, MathInput, Modal } from './common';
 
 const TRANSFER_RE = /^Transfer\s*:\s*(.+)$/i;
 
@@ -165,7 +165,7 @@ function CategoryField({ data, form }: { data: BudgetData; form: Form }) {
       {splits.map((s, i) => (
         <div className="split-row" key={i}>
           <CategorySelect data={data} value={s.categoryId} onChange={(v) => update(i, { categoryId: v })} />
-          <input inputMode="decimal" placeholder="0.00" aria-label="Split amount" value={s.amount} onChange={(e) => update(i, { amount: e.target.value })} />
+          <MathInput placeholder="0.00" aria-label="Split amount" value={s.amount} onChange={(v) => update(i, { amount: v })} />
           <input placeholder="Memo" aria-label="Split memo" value={s.memo} onChange={(e) => update(i, { memo: e.target.value })} />
           <button
             className="icon-btn"
@@ -231,10 +231,10 @@ export function TransactionRowEditor({ showAccount, ...props }: EditorProps & { 
           <input value={form.memo} onChange={(e) => form.setMemo(e.target.value)} placeholder="Memo" aria-label="Memo" />
         </td>
         <td>
-          <input className="num-input" inputMode="decimal" value={form.outflow} onChange={(e) => form.setOutflow(e.target.value)} placeholder="Outflow" aria-label="Outflow" />
+          <MathInput className="num-input" value={form.outflow} onChange={form.setOutflow} placeholder="Outflow" aria-label="Outflow" />
         </td>
         <td>
-          <input className="num-input" inputMode="decimal" value={form.inflow} onChange={(e) => form.setInflow(e.target.value)} placeholder="Inflow" aria-label="Inflow" />
+          <MathInput className="num-input" value={form.inflow} onChange={form.setInflow} placeholder="Inflow" aria-label="Inflow" />
         </td>
         <td className="row-actions">
           <button className="icon-btn save" onClick={form.save} title="Save (Enter)" aria-label="Save">
@@ -327,7 +327,7 @@ export function TransactionFormModal({ showAccount, ...props }: EditorProps & { 
         </div>
         <label>
           Amount
-          <input className="amount-input" inputMode="decimal" autoFocus={!props.txn} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          <MathInput className="amount-input" autoFocus={!props.txn} value={amount} onChange={setAmount} placeholder="0.00" />
         </label>
         <label>
           Payee

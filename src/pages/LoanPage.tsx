@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { MathInput } from '../components/common';
 import { accountBalances } from '../lib/budget';
 import { amortizedPayment, payoff } from '../lib/loan';
-import { centsToInput, formatMoney, parseMoney } from '../lib/money';
+import { centsToInput, evaluateNumber, formatMoney, parseMoney } from '../lib/money';
 import { addMonths, currentMonth, formatMonth } from '../lib/month';
 import type { BudgetData } from '../types';
 
@@ -25,7 +26,7 @@ export function LoanPage({ data }: { data: BudgetData }) {
   const [extra, setExtra] = useState('100');
 
   const bal = parseMoney(balance) ?? 0;
-  const rate = Number(apr) || 0;
+  const rate = evaluateNumber(apr) ?? 0;
   const pmt = payment.trim() ? (parseMoney(payment) ?? 0) : amortizedPayment(bal, rate, 60);
   const ext = parseMoney(extra || '0') ?? 0;
 
@@ -74,19 +75,19 @@ export function LoanPage({ data }: { data: BudgetData }) {
         <div className="grid-2">
           <label>
             Balance owed
-            <input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} />
+            <MathInput value={balance} onChange={setBalance} />
           </label>
           <label>
             Interest rate (APR %)
-            <input inputMode="decimal" value={apr} onChange={(e) => setApr(e.target.value)} />
+            <MathInput value={apr} onChange={setApr} decimals={4} />
           </label>
           <label>
             Monthly payment
-            <input inputMode="decimal" value={payment} onChange={(e) => setPayment(e.target.value)} placeholder={`${centsToInput(pmt)} (5-yr payoff)`} />
+            <MathInput value={payment} onChange={setPayment} placeholder={`${centsToInput(pmt)} (5-yr payoff)`} />
           </label>
           <label>
             Extra each month
-            <input inputMode="decimal" value={extra} onChange={(e) => setExtra(e.target.value)} />
+            <MathInput value={extra} onChange={setExtra} />
           </label>
         </div>
       </div>

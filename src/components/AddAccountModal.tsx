@@ -4,7 +4,7 @@ import { createAccount } from '../actions';
 import { today } from '../lib/month';
 import { parseMoney } from '../lib/money';
 import { ACCOUNT_TYPE_LABELS, type AccountType } from '../types';
-import { Modal } from './common';
+import { MathInput, Modal } from './common';
 
 export function AddAccountModal({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('');
@@ -74,7 +74,7 @@ export function AddAccountModal({ onClose }: { onClose: () => void }) {
         <div className="grid-2">
           <label>
             {isDebt ? 'Current amount owed' : 'Current balance'}
-            <input inputMode="decimal" value={balance} onChange={(e) => setBalance(e.target.value)} placeholder="0.00" />
+            <MathInput value={balance} onChange={setBalance} placeholder="0.00" />
           </label>
           <label>
             As of

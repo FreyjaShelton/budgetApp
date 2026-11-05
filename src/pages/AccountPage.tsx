@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { categorizeTransactions, deleteAccount, deleteTransactions, reconcileAccount, setCleared, updateAccount } from '../actions';
-import { CategorySelect, Modal, Money, categoryName, useMediaQuery } from '../components/common';
+import { categoryName, CategorySelect, MathInput, Modal, Money, useMediaQuery } from '../components/common';
 import { ImportModal } from '../components/ImportModal';
 import { TransactionFormModal, TransactionRowEditor } from '../components/TransactionEditor';
 import { accountBalances, parts, uncategorized } from '../lib/budget';
@@ -466,7 +466,7 @@ function ReconcileModal({ account, cleared, onClose }: { account: Account; clear
         <>
           <label>
             Balance your bank shows{isDebt ? ' (enter debt as negative, e.g. -450.00)' : ''}
-            <input autoFocus inputMode="decimal" value={stmt} onChange={(e) => setStmt(e.target.value)} />
+            <MathInput autoFocus value={stmt} onChange={setStmt} />
           </label>
           {parsed !== null && stmt && (
             <p className="muted" style={{ margin: 0 }}>

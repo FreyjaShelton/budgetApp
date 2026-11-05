@@ -4,7 +4,7 @@ import { assignedHistory, targetStatus, type CategoryMonth, type MonthSummary } 
 import { centsToInput, formatMoney, parseMoney } from '../lib/money';
 import { addMonths, currentMonth, endOfMonth, monthOf, today } from '../lib/month';
 import type { BudgetData, Category, Cents, MonthKey, Target } from '../types';
-import { CategorySelect, Money } from './common';
+import { CategorySelect, MathInput, Money } from './common';
 
 export function CategoryInspector({
   data,
@@ -178,7 +178,7 @@ function MoveMoney({ data, cat, month, available }: { data: BudgetData; cat: Cat
       <div className="grid-2">
         <label>
           Amount
-          <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+          <MathInput value={amount} onChange={setAmount} />
         </label>
         <label>
           {overspent ? 'From' : 'To'}
@@ -254,7 +254,7 @@ function TargetEditor({ cat, statusLabel }: { cat: Category; statusLabel?: strin
       </label>
       <label>
         Amount
-        <input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+        <MathInput value={amount} onChange={setAmount} placeholder="0.00" />
       </label>
       {type === 'monthly' && (
         <label>

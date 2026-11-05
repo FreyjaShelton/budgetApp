@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyCsvMapping, findDuplicates, guessMapping, parseCsvRows, parseOfx } from './importers';
 import { amortizedPayment, payoff } from './loan';
-import { parseMoney } from './money';
+import { evaluateNumber, formatComputed, hasMath, parseMoney } from './money';
 import { addMonths, endOfMonth, monthDiff } from './month';
 
 describe('parseMoney', () => {
@@ -17,6 +17,33 @@ describe('parseMoney', () => {
   ])('%s -> %i', (input, cents) => expect(parseMoney(input)).toBe(cents));
 
   it.each(['', 'abc', '1+', '5/0'])('rejects %j', (input) => expect(parseMoney(input)).toBeNull());
+});
+
+describe('math in number fields', () => {
+  it.each([
+    ['2+2', 4],
+    ['120.50*2', 241],
+    ['300/3', 100],
+    ['2x3', 6],
+    ['10 ÷ 4', 2.5],
+    ['5 − 2', 3],
+    ['$1,000 + $250.25', 1250.25],
+    ['6.25/2', 3.125],
+  ])('%s = %d', (input, value) => expect(evaluateNumber(input)).toBe(value));
+
+  it('only treats operators after the first character as math', () => {
+    expect(hasMath('2+2')).toBe(true);
+    expect(hasMath('-50')).toBe(false);
+    expect(hasMath('1,250.00')).toBe(false);
+    expect(hasMath('12 x 3')).toBe(true);
+  });
+
+  it('formats results for the field', () => {
+    expect(formatComputed(4)).toBe('4.00');
+    expect(formatComputed(10 / 3)).toBe('3.33');
+    expect(formatComputed(3.125, 4)).toBe('3.125');
+    expect(formatComputed(6.5, 4)).toBe('6.5');
+  });
 });
 
 describe('months', () => {
