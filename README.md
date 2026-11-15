@@ -48,10 +48,13 @@ Money is stored as integer cents everywhere.
 ## Deployment
 
 Hosted on Cloudflare Workers (static assets, see `wrangler.jsonc`), which builds from this
-private repo on every push to `main`: build command `npm run build`, deploy command
+repo on every push to `main`: build command `npm run build`, deploy command
 `npx wrangler deploy`, Node version from `.node-version`. Cloudflare Access restricts the
 site to the owner's email.
 
-Google Drive sync uses the OAuth client ID in `.env` (`VITE_GOOGLE_CLIENT_ID`), from Google Cloud
-project `budget-sync-512813`. Its authorized JavaScript origins are the workers.dev URL and
-`http://localhost:5173`; add any new domain there too.
+Google Drive sync needs an OAuth client ID (`VITE_GOOGLE_CLIENT_ID`). Locally, copy `.env.example`
+to `.env` (git-ignored) and fill it in. On Cloudflare, set `VITE_GOOGLE_CLIENT_ID` as a build
+variable (Settings, then Build, then Variables and secrets), since Vite reads it at build time.
+The client ID is not a secret (it ships in the built page); Google restricts where it works through
+the client's authorized JavaScript origins, which are the workers.dev URL and
+`http://localhost:5173`. Add any new domain there too.
